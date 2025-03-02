@@ -1,0 +1,1589 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Prime Framework Visualization</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+        width: 100%;
+        overflow: hidden;
+        background-color: #111;
+        font-family: Arial, sans-serif;
+        color: #eee;
+      }
+      #root {
+        height: 100%;
+        width: 100%;
+        position: relative;
+      }
+      /* Optional styling for controls if needed */
+      .controls {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        z-index: 10;
+      }
+      .controls button {
+        margin: 0 5px;
+        padding: 5px 10px;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- Load React, ReactDOM, and THREE via CDN -->
+    <script type="module">
+      // Import modules from CDN
+      import React, { useState, useEffect, useRef } from "https://cdn.skypack.dev/react@18";
+      import ReactDOM from "https://cdn.skypack.dev/react-dom@18";
+      import * as THREE from "https://cdn.skypack.dev/three@0.152.2";
+
+      // Helper functions
+      function isPrime(n) {
+        if (n < 2) return false;
+        for (let i = 2; i <= Math.sqrt(n); i++) {
+          if (n % i === 0) return false;
+        }
+        return true;
+      }
+
+      function primeFactorization(n) {
+        const factors = [];
+        let d = 2;
+        while (n > 1 && d <= Math.sqrt(n)) {
+          while (n % d === 0) {
+            factors.push(d);
+            n = n / d;
+          }
+          d++;
+        }
+        if (n > 1) {
+          factors.push(n);
+        }
+        return factors;
+      }
+
+      function getDivisors(n) {
+        const divisors = [];
+        for (let i = 1; i <= n; i++) {
+          if (n % i === 0) divisors.push(i);
+        }
+        return divisors;
+      }
+
+      // The main React component
+      const PrimeFrameworkVisualization = () => {
+        const [activeTab, setActiveTab] = useState("pnp");
+        const [step, setStep] = useState(0);
+        const [playing, setPlaying] = useState(false);
+        const [showDetails, setShowDetails] = useState(false);
+
+        // Simulation parameters
+        const [localOperations, setLocalOperations] = useState(10);
+        const [verificationSteps, setVerificationSteps] = useState(5);
+        const [searchSpace, setSearchSpace] = useState(5);
+
+        const canvasRef = useRef(null);
+        const sceneRef = useRef(null);
+        const rendererRef = useRef(null);
+        const cameraRef = useRef(null);
+        const animationRef = useRef(null);
+        const objectsRef = useRef([]);
+        const simulationTimeRef = useRef(0);
+
+        // Simulation status
+        const [isRunning, setIsRunning] = useState(true);
+        const [simulationTime, setSimulationTime] = useState(0);
+
+        // Tab content definitions
+        const tabs = [
+          { id: "pnp", label: "P vs NP" },
+          { id: "number-theory", label: "Number Theory" },
+          { id: "navier-stokes", label: "Fluid Dynamics" }
+        ];
+
+        // Steps for each tab
+        const pnpSteps = [
+          {
+            title: "UOR Framework",
+            description:
+              "Computational problems encoded in the Universal Object Reference framework",
+            details:
+              "The UOR framework combines Clifford algebras, Lie groups, and manifold theory, providing a unified mathematical structure where computational problems can be represented. Computational steps are represented as operations in the algebraic structure."
+          },
+          {
+            title: "Instance & Certificate Encoding",
+            description:
+              "Problem instances and solution certificates as UOR objects",
+            details:
+              "Problem instances (like Boolean formulas) are encoded as elements of a Clifford algebra, with a coherence inner product measuring consistency. Solution certificates (like variable assignments) are similarly encoded, with their validity determined by how well they cohere with problem constraints."
+          },
+          {
+            title: "Verification as Local Coherence",
+            description:
+              "Checking solutions through local coherence measurements",
+            details:
+              "Verification of a solution involves checking that each local constraint is satisfied. For example, in SAT, each clause must be true under the given assignment. These local coherence checks can be performed independently and efficiently, making verification a polynomial-time process."
+          },
+          {
+            title: "Search as Global Coherence",
+            description:
+              "Finding solutions requires achieving global coherence",
+            details:
+              "Finding a solution means navigating an exponentially large space to discover a globally coherent state that satisfies all constraints simultaneously. Unlike verification, which checks each constraint independently, solving must coordinate values across all variables to satisfy all constraints at once."
+          },
+          {
+            title: "Coherence Norm Minimization",
+            description: "Finding solutions by reducing the coherence norm to zero",
+            details:
+              "A solution corresponds to a state with zero coherence norm, indicating perfect alignment with all problem constraints. Any algorithm that finds solutions must navigate from high-norm states to zero-norm states through sequences of local operations."
+          },
+          {
+            title: "P ≠ NP Conclusion",
+            description:
+              "Local operations cannot efficiently achieve global coherence",
+            details:
+              "The Prime Framework demonstrates that polynomial-length sequences of local operations cannot reliably find globally coherent states (solutions) for NP-complete problems. Each operation affects only a small part of the state, and exponentially many operations are required to explore the solution space adequately. This establishes P ≠ NP."
+          }
+        ];
+
+        const numberTheorySteps = [
+          {
+            title: "Number Embedding",
+            description: "Embedding numbers into the fiber algebra Cx",
+            details:
+              "Each natural number N is embedded into a fiber algebra Cx by encoding its digits in every possible base b ≥ 2 within distinct graded components. The coherence inner product ensures a unique canonical representation."
+          },
+          {
+            title: "Intrinsic Primes",
+            description:
+              "Numbers that cannot be factored nontrivially within Cx",
+            details:
+              "An embedded number N̂ is intrinsically prime if whenever N̂ = Â·B̂ for some embedded numbers Â, B̂, then either A=1 or B=1. These are the building blocks of all numbers in the framework."
+          },
+          {
+            title: "Unique Factorization",
+            description:
+              "Every number factors uniquely into intrinsic primes",
+            details:
+              "Every embedded number N̂ can be expressed as a product of intrinsic primes, and this factorization is unique up to the order of factors. This mirrors the fundamental theorem of arithmetic but derived entirely within the framework."
+          },
+          {
+            title: "Prime Operator",
+            description: "Linear operator encoding divisor structure",
+            details:
+              "We define the Prime Operator H on ℓ²(ℕ) by H(δN) = ∑d|N δd, encoding the divisor structure of numbers. Its spectral properties reveal deep connections to analytic number theory."
+          },
+          {
+            title: "Intrinsic Zeta Function",
+            description: "Derived from the spectral properties of H",
+            details:
+              "The formal determinant D(s) = det(I - p⁻ˢH) factorizes according to the unique factorization property, yielding ζP(s) = 1/D(s) = ∏p (1-p⁻ˢ)⁻¹, recovering the classical Euler product."
+          },
+          {
+            title: "Analytic Number Theory Results",
+            description:
+              "Prime Number Theorem and Riemann Hypothesis",
+            details:
+              "The symmetry in the framework forces ζP(s) to satisfy a functional equation and an analogue of the Riemann Hypothesis, placing all nontrivial zeros on the critical line."
+          }
+        ];
+
+        const navierstokesSteps = [
+          {
+            title: "Manifold Structure (M, g)",
+            description:
+              "The fluid domain as a smooth, connected, orientable manifold with metric tensor",
+            details:
+              "We model the fluid domain as a smooth manifold M equipped with a nondegenerate metric tensor g. This provides the geometric foundation for our differential operators and ensures a coordinate-invariant formulation."
+          },
+          {
+            title: "Clifford Algebra Fibers (Cx)",
+            description:
+              "Attaching Clifford algebra fibers at each point x ∈ M",
+            details:
+              "At each point x on our manifold, we attach a Clifford algebra fiber Cx = Cl(TxM, gx). This algebraic structure encodes scalar and vector quantities in a unified framework, providing an intrinsic representation for velocity and pressure fields."
+          },
+          {
+            title: "Coherence Inner Product",
+            description:
+              "Ensuring unique, canonical representation of physical fields",
+            details:
+              "A positive-definite inner product ⟨·,·⟩c on Cx ensures that multiple representations of a field cohere into a unique, canonical form. This is crucial for maintaining consistency in our velocity field and stress tensor representations."
+          },
+          {
+            title: "Velocity Field Embedding",
+            description:
+              "Representing v(x,t) intrinsically within the algebraic structure",
+            details:
+              "The velocity field v(x,t) is embedded as an element v̂(x,t) in the Clifford algebra, with its graded components encoding vector components. The coherence inner product guarantees uniqueness, and the embedding remains invariant under the symmetry group G."
+          },
+          {
+            title: "Conservation Laws",
+            description:
+              "Mass and momentum conservation through intrinsic operators",
+            details:
+              "The incompressibility condition ∇·v = 0 is expressed via the intrinsic divergence operator in Clifford algebra. Similarly, Newton's second law applied to fluid elements yields the momentum equation with intrinsic differential operators."
+          },
+          {
+            title: "Navier-Stokes Equations",
+            description: "Recovering the classical equations from our framework",
+            details:
+              "When expressed in local coordinates, the intrinsic equations reduce to the familiar Navier-Stokes equations: ∂v/∂t + (v·∇)v = -∇p + ν∇²v + f and ∇·v = 0."
+          }
+        ];
+
+        const getSteps = () => {
+          switch (activeTab) {
+            case "pnp":
+              return pnpSteps;
+            case "number-theory":
+              return numberTheorySteps;
+            case "navier-stokes":
+              return navierstokesSteps;
+            default:
+              return pnpSteps;
+          }
+        };
+
+        const steps = getSteps();
+
+        // Initialize Three.js and create visualization
+        useEffect(() => {
+          // Reset step when changing tabs
+          setStep(0);
+          setPlaying(false);
+
+          // Initialize Three.js
+          const canvas = canvasRef.current;
+          if (!canvas) return;
+
+          const renderer = new THREE.WebGLRenderer({
+            canvas,
+            antialias: true,
+            alpha: true
+          });
+          renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+          renderer.setClearColor(0x000000, 0);
+          rendererRef.current = renderer;
+
+          // Camera setup
+          const camera = new THREE.PerspectiveCamera(
+            75,
+            canvas.clientWidth / canvas.clientHeight,
+            0.1,
+            1000
+          );
+          camera.position.z = 5;
+          cameraRef.current = camera;
+
+          // Create scene
+          const scene = new THREE.Scene();
+          sceneRef.current = scene;
+
+          // Ambient light
+          const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+          scene.add(ambientLight);
+
+          // Directional light
+          const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+          directionalLight.position.set(5, 5, 5);
+          scene.add(directionalLight);
+
+          // Clear previous objects
+          objectsRef.current.forEach((obj) => {
+            scene.remove(obj);
+          });
+          objectsRef.current = [];
+
+          // Create visualizations based on active tab
+          switch (activeTab) {
+            case "pnp":
+              createPNPVisualization(scene);
+              break;
+            case "number-theory":
+              createNumberTheoryVisualization(scene);
+              break;
+            case "navier-stokes":
+              createFluidVisualization(scene);
+              break;
+            default:
+              createPNPVisualization(scene);
+          }
+
+          // Animation loop
+          const animate = () => {
+            animationRef.current = requestAnimationFrame(animate);
+
+            // Update visualization based on active tab
+            switch (activeTab) {
+              case "pnp":
+                animatePNPVisualization(scene, step);
+                break;
+              case "number-theory":
+                animateNumberTheoryVisualization(scene, step);
+                break;
+              case "navier-stokes":
+                animateFluidVisualization(scene, step);
+                break;
+            }
+
+            // Update simulation time if running
+            if (isRunning) {
+              simulationTimeRef.current += 0.01;
+              setSimulationTime(simulationTimeRef.current);
+            }
+
+            renderer.render(scene, camera);
+          };
+
+          animate();
+
+          // Clean up on unmount or tab change
+          return () => {
+            cancelAnimationFrame(animationRef.current);
+            renderer.dispose();
+          };
+        }, [activeTab]);
+
+        // Update visualization based on step change
+        useEffect(() => {
+          updateVisualizationForStep();
+        }, [step]);
+
+        const updateVisualizationForStep = () => {
+          const scene = sceneRef.current;
+          if (!scene) return;
+
+          switch (activeTab) {
+            case "pnp":
+              updatePNPVisualizationStep(scene, step);
+              break;
+            case "number-theory":
+              updateNumberTheoryVisualizationStep(scene, step);
+              break;
+            case "navier-stokes":
+              updateFluidVisualizationStep(scene, step);
+              break;
+          }
+        };
+
+        // --- Visualization Creation and Animation Functions ---
+
+        // Create P vs NP visualization
+        const createPNPVisualization = (scene) => {
+          // Create a central platform to represent the problem space
+          const platformGeometry = new THREE.CylinderGeometry(3, 3, 0.2, 32);
+          const platformMaterial = new THREE.MeshPhongMaterial({
+            color: 0x444444,
+            transparent: true,
+            opacity: 0.8
+          });
+          const platform = new THREE.Mesh(platformGeometry, platformMaterial);
+          platform.position.y = -1;
+          scene.add(platform);
+          objectsRef.current.push(platform);
+
+          // Create a lattice structure representing the computation space
+          const latticeGroup = new THREE.Group();
+          scene.add(latticeGroup);
+          objectsRef.current.push(latticeGroup);
+
+          // Create small spheres for constraint nodes/clauses
+          const constraintGroup = new THREE.Group();
+          scene.add(constraintGroup);
+          objectsRef.current.push(constraintGroup);
+
+          // Create a solution space visualization (like a hypercube)
+          const solutionGroup = new THREE.Group();
+          scene.add(solutionGroup);
+          objectsRef.current.push(solutionGroup);
+
+          // Create a separate verification structure
+          const verificationGroup = new THREE.Group();
+          scene.add(verificationGroup);
+          objectsRef.current.push(verificationGroup);
+
+          // Create solving path/trace visualization
+          const solvingPathGroup = new THREE.Group();
+          scene.add(solvingPathGroup);
+          objectsRef.current.push(solvingPathGroup);
+        };
+
+        // Create Number Theory visualization
+        const createNumberTheoryVisualization = (scene) => {
+          // Create manifold as a torus to represent the number field
+          const torusGeometry = new THREE.TorusGeometry(2, 0.5, 16, 100);
+          const torusMaterial = new THREE.MeshPhongMaterial({
+            color: 0x9370db,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.7
+          });
+          const torus = new THREE.Mesh(torusGeometry, torusMaterial);
+          scene.add(torus);
+          objectsRef.current.push(torus);
+
+          // Create number points
+          const numberGroup = new THREE.Group();
+          scene.add(numberGroup);
+          objectsRef.current.push(numberGroup);
+
+          // Create prime operator representation
+          const operatorGroup = new THREE.Group();
+          scene.add(operatorGroup);
+          objectsRef.current.push(operatorGroup);
+          operatorGroup.visible = false;
+
+          // Create zeta function representation
+          const zetaGroup = new THREE.Group();
+          scene.add(zetaGroup);
+          objectsRef.current.push(zetaGroup);
+          zetaGroup.visible = false;
+        };
+
+        // Create Fluid Dynamics visualization
+        const createFluidVisualization = (scene) => {
+          // Create manifold (representing a smooth manifold with metric tensor)
+          const geometry = new THREE.SphereGeometry(2, 32, 32);
+          const material = new THREE.MeshPhongMaterial({
+            color: 0x3d85c6,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.7,
+            side: THREE.DoubleSide
+          });
+          const manifold = new THREE.Mesh(geometry, material);
+          scene.add(manifold);
+          objectsRef.current.push(manifold);
+
+          // Create a subtle grid pattern for the metric tensor
+          const gridGeometry = new THREE.SphereGeometry(2.01, 16, 16);
+          const gridMaterial = new THREE.MeshBasicMaterial({
+            color: 0x87ceeb,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.3
+          });
+          const grid = new THREE.Mesh(gridGeometry, gridMaterial);
+          scene.add(grid);
+          objectsRef.current.push(grid);
+
+          // Create particles for fluid visualization
+          const particleGeometry = new THREE.BufferGeometry();
+          const particleCount = 200;
+          const positions = new Float32Array(particleCount * 3);
+          for (let i = 0; i < particleCount * 3; i += 3) {
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+            const radius = 1.9 + Math.random() * 0.1;
+            positions[i] = radius * Math.sin(phi) * Math.cos(theta);
+            positions[i + 1] = radius * Math.sin(phi) * Math.sin(theta);
+            positions[i + 2] = radius * Math.cos(phi);
+          }
+          particleGeometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+          const particleMaterial = new THREE.PointsMaterial({
+            color: 0xd0f0ff,
+            size: 0.04,
+            transparent: true,
+            opacity: 0.7
+          });
+          const particles = new THREE.Points(particleGeometry, particleMaterial);
+          particles.visible = false;
+          scene.add(particles);
+          objectsRef.current.push(particles);
+
+          // Create velocity field (initially empty)
+          const velocityField = new THREE.Group();
+          scene.add(velocityField);
+          objectsRef.current.push(velocityField);
+        };
+
+        // Animation functions for each tab
+        const animatePNPVisualization = (scene, step) => {
+          const platform = objectsRef.current[0];
+          const latticeGroup = objectsRef.current[1];
+          const constraintGroup = objectsRef.current[2];
+          const solutionGroup = objectsRef.current[3];
+          const verificationGroup = objectsRef.current[4];
+          const solvingPathGroup = objectsRef.current[5];
+
+          if (platform) {
+            platform.rotation.y += 0.002;
+          }
+
+          if (latticeGroup && latticeGroup.children.length > 0) {
+            for (let i = 0; i < latticeGroup.children.length; i++) {
+              const point = latticeGroup.children[i];
+              point.scale.set(
+                1 + 0.1 * Math.sin(simulationTime * 2 + i * 0.2),
+                1 + 0.1 * Math.sin(simulationTime * 2 + i * 0.2),
+                1 + 0.1 * Math.sin(simulationTime * 2 + i * 0.2)
+              );
+            }
+          }
+
+          if (step === 2 && verificationGroup && verificationGroup.children.length > 0) {
+            const time = simulationTime;
+            for (let i = 0; i < verificationGroup.children.length; i++) {
+              const line = verificationGroup.children[i];
+              if (line.material) {
+                const delay = i * 0.5;
+                const phase = (time - delay) % 3;
+                if (phase >= 0 && phase < 1) {
+                  line.material.opacity = 0.8 * (1 - phase);
+                  line.material.color.setRGB(0, 1, phase);
+                } else {
+                  line.material.opacity = 0.2;
+                  line.material.color.setRGB(0, 0.3, 1);
+                }
+              }
+            }
+          }
+
+          if (step === 3 && solvingPathGroup && solvingPathGroup.children.length > 0) {
+            const time = simulationTime;
+            const activePathIndex = Math.floor(time % solvingPathGroup.children.length);
+            for (let i = 0; i < solvingPathGroup.children.length; i++) {
+              const path = solvingPathGroup.children[i];
+              if (path.material) {
+                if (i === activePathIndex) {
+                  path.material.opacity = 0.9;
+                  path.material.color.setRGB(1, 0.8, 0);
+                } else {
+                  path.material.opacity = 0.2;
+                  path.material.color.setRGB(0.5, 0.5, 0.5);
+                }
+              }
+            }
+          }
+
+          if (constraintGroup && constraintGroup.children.length > 0) {
+            for (let i = 0; i < constraintGroup.children.length; i++) {
+              const constraint = constraintGroup.children[i];
+              if (step === 4) {
+                const isSatisfied = constraint.userData && constraint.userData.satisfied;
+                const targetColor = isSatisfied ? new THREE.Color(0, 1, 0) : new THREE.Color(1, 0, 0);
+                if (constraint.material) {
+                  constraint.material.color.lerp(targetColor, 0.05);
+                  if (isSatisfied) {
+                    const scale = 1 + 0.2 * Math.sin(simulationTime * 3 + i);
+                    constraint.scale.set(scale, scale, scale);
+                  }
+                }
+              }
+            }
+          }
+
+          if (step === 5 && solutionGroup && latticeGroup) {
+            solutionGroup.rotation.y += 0.005;
+            if (latticeGroup.children.length > 0) {
+              const pulseIntensity = 0.5 + 0.5 * Math.sin(simulationTime);
+              latticeGroup.children.forEach((node) => {
+                if (node.material) {
+                  node.material.emissiveIntensity = pulseIntensity * 0.5;
+                }
+              });
+            }
+          }
+        };
+
+        const animateNumberTheoryVisualization = (scene, step) => {
+          const torus = objectsRef.current[0];
+          const numberGroup = objectsRef.current[1];
+          const operatorGroup = objectsRef.current[2];
+          const zetaGroup = objectsRef.current[3];
+
+          if (torus) {
+            torus.rotation.x += 0.002;
+            torus.rotation.z += 0.001;
+          }
+
+          if (step >= 0 && numberGroup && numberGroup.children.length > 0) {
+            numberGroup.children.forEach((numObj, i) => {
+              if (numObj.userData && numObj.userData.isPrime) {
+                const scale = 1 + 0.1 * Math.sin(simulationTime * 2 + i);
+                numObj.scale.set(scale, scale, scale);
+              }
+              numObj.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), 0.002);
+            });
+          }
+
+          if (step >= 3 && operatorGroup && operatorGroup.children.length > 0) {
+            operatorGroup.children.forEach((line, i) => {
+              if (line.material) {
+                line.material.opacity = 0.3 + 0.2 * Math.sin(simulationTime * 3 + i * 0.2);
+              }
+            });
+          }
+
+          if (step >= 4 && zetaGroup && zetaGroup.children.length > 0) {
+            zetaGroup.rotation.y += 0.003;
+            zetaGroup.children.forEach((point, i) => {
+              if (point.userData && point.userData.isZero && point.material && point.material.emissiveIntensity !== undefined) {
+                point.material.emissiveIntensity = 0.5 + 0.5 * Math.sin(simulationTime * 4 + i);
+              }
+            });
+          }
+        };
+
+        const animateFluidVisualization = (scene, step) => {
+          const manifold = objectsRef.current[0];
+          const grid = objectsRef.current[1];
+          const particles = objectsRef.current[2];
+          const velocityField = objectsRef.current[3];
+
+          if (manifold) {
+            manifold.rotation.y += 0.002;
+            if (grid) {
+              grid.rotation.y = manifold.rotation.y;
+              grid.rotation.x = manifold.rotation.x;
+            }
+          }
+
+          if (step >= 4 && particles && particles.geometry) {
+            const positions = particles.geometry.attributes.position.array;
+            const particleSpeed = 0.025;
+            const vortexEffect = 0.03;
+            const viscosityDamping = 0.9;
+            for (let i = 0; i < positions.length; i += 3) {
+              const x = positions[i], y = positions[i + 1], z = positions[i + 2];
+              const length = Math.sqrt(x * x + y * y + z * z);
+              const nx = x / length, ny = y / length, nz = z / length;
+              const vx = particleSpeed * (-ny + vortexEffect * nz * ny);
+              const vy = particleSpeed * (nx - vortexEffect * nz * nx);
+              const vz = particleSpeed * (vortexEffect * (nx * nx + ny * ny));
+              positions[i] += vx * viscosityDamping;
+              positions[i + 1] += vy * viscosityDamping;
+              positions[i + 2] += vz * viscosityDamping;
+              const newLength = Math.sqrt(positions[i] ** 2 + positions[i + 1] ** 2 + positions[i + 2] ** 2);
+              const scale = (1.9 + Math.random() * 0.1) / newLength;
+              positions[i] *= scale;
+              positions[i + 1] *= scale;
+              positions[i + 2] *= scale;
+            }
+            particles.geometry.attributes.position.needsUpdate = true;
+          }
+
+          if (step >= 3 && velocityField && velocityField.children.length > 0) {
+            const time = simulationTime;
+            velocityField.children.forEach((arrow, index) => {
+              if (arrow instanceof THREE.ArrowHelper && arrow.userData) {
+                const originalLength = arrow.userData.originalLength || 0.4;
+                const pulseFactor = 0.8 + 0.2 * Math.sin(time * 2 + index * 0.2);
+                if (arrow.setLength) {
+                  arrow.setLength(originalLength * pulseFactor);
+                }
+                if (!arrow.userData.vortexCenter) {
+                  const originalDirection = arrow.userData.originalDirection;
+                  if (originalDirection) {
+                    const axis = new THREE.Vector3(0, 1, 0);
+                    const angle = 0.02 * Math.sin(time + index * 0.1);
+                    const rotatedDir = originalDirection.clone();
+                    rotatedDir.applyAxisAngle(axis, angle);
+                    if (arrow.setDirection) {
+                      arrow.setDirection(rotatedDir);
+                    }
+                  }
+                }
+              }
+            });
+          }
+        };
+
+        // Update visualization based on steps
+        const updatePNPVisualizationStep = (scene, step) => {
+          const latticeGroup = objectsRef.current[1];
+          const constraintGroup = objectsRef.current[2];
+          const solutionGroup = objectsRef.current[3];
+          const verificationGroup = objectsRef.current[4];
+          const solvingPathGroup = objectsRef.current[5];
+
+          [latticeGroup, constraintGroup, solutionGroup, verificationGroup, solvingPathGroup].forEach((group) => {
+            if (group) {
+              while (group.children.length > 0) {
+                group.remove(group.children[0]);
+              }
+            }
+          });
+
+          if (latticeGroup) latticeGroup.visible = step >= 0;
+          if (constraintGroup) constraintGroup.visible = step >= 1;
+          if (solutionGroup) solutionGroup.visible = step >= 1;
+          if (verificationGroup) verificationGroup.visible = step === 2;
+          if (solvingPathGroup) solvingPathGroup.visible = step >= 3;
+
+          switch (step) {
+            case 0:
+              createUORFramework(scene);
+              break;
+            case 1:
+              createUORFramework(scene);
+              createInstanceCertificateEncoding(scene);
+              break;
+            case 2:
+              createUORFramework(scene);
+              createInstanceCertificateEncoding(scene);
+              createVerificationStructure(scene);
+              break;
+            case 3:
+              createUORFramework(scene);
+              createInstanceCertificateEncoding(scene);
+              createSearchStructure(scene);
+              break;
+            case 4:
+              createUORFramework(scene);
+              createInstanceCertificateEncoding(scene);
+              createCoherenceNormVisualization(scene);
+              break;
+            case 5:
+              createUORFramework(scene);
+              createInstanceCertificateEncoding(scene);
+              createPvsNPConclusion(scene);
+              break;
+          }
+        };
+
+        const updateNumberTheoryVisualizationStep = (scene, step) => {
+          const numberGroup = objectsRef.current[1];
+          const operatorGroup = objectsRef.current[2];
+          const zetaGroup = objectsRef.current[3];
+
+          if (numberGroup) {
+            numberGroup.visible = step >= 0;
+            while (numberGroup.children.length > 0) {
+              numberGroup.remove(numberGroup.children[0]);
+            }
+          }
+          if (operatorGroup) {
+            operatorGroup.visible = step >= 3;
+            while (operatorGroup.children.length > 0) {
+              operatorGroup.remove(operatorGroup.children[0]);
+            }
+          }
+          if (zetaGroup) {
+            zetaGroup.visible = step >= 4;
+            while (zetaGroup.children.length > 0) {
+              zetaGroup.remove(zetaGroup.children[0]);
+            }
+          }
+
+          switch (step) {
+            case 0:
+              addNumberEmbeddings(scene);
+              break;
+            case 1:
+              addPrimeNumbers(scene);
+              break;
+            case 2:
+              addNumberFactorization(scene);
+              break;
+            case 3:
+              addPrimeOperator(scene);
+              break;
+            case 4:
+              addZetaFunction(scene);
+              break;
+            case 5:
+              addRiemannHypothesis(scene);
+              break;
+          }
+        };
+
+        const updateFluidVisualizationStep = (scene, step) => {
+          const particles = objectsRef.current[2];
+          const velocityField = objectsRef.current[3];
+
+          if (velocityField) {
+            while (velocityField.children.length > 0) {
+              velocityField.remove(velocityField.children[0]);
+            }
+          }
+          if (particles) {
+            particles.visible = step >= 4;
+          }
+          if (velocityField) {
+            velocityField.visible = step >= 3;
+          }
+
+          switch (step) {
+            case 0:
+              addCoordinateSystem(scene);
+              break;
+            case 1:
+              addFiberAlgebras(scene);
+              break;
+            case 2:
+              addFiberAlgebras(scene);
+              addCoherenceLinks(scene);
+              break;
+            case 3:
+              addFiberAlgebras(scene);
+              addVelocityVectors(scene);
+              break;
+            case 4:
+              addDivergenceFreeField(scene);
+              break;
+            case 5:
+              addNavierStokesField(scene);
+              break;
+          }
+        };
+
+        // P vs NP helper functions
+        const createUORFramework = (scene) => {
+          const latticeGroup = objectsRef.current[1];
+          const latticeSize = localOperations;
+          const latticeSpacing = 5 / latticeSize;
+          for (let i = 0; i < latticeSize; i++) {
+            for (let j = 0; j < latticeSize; j++) {
+              const x = (i - latticeSize / 2 + 0.5) * latticeSpacing;
+              const z = (j - latticeSize / 2 + 0.5) * latticeSpacing;
+              const y = -0.9;
+              const geometry = new THREE.SphereGeometry(0.08, 16, 16);
+              const material = new THREE.MeshPhongMaterial({
+                color: 0x00aaff,
+                emissive: 0x0044aa,
+                emissiveIntensity: 0.3
+              });
+              const point = new THREE.Mesh(geometry, material);
+              point.position.set(x, y, z);
+              latticeGroup.add(point);
+              if (i > 0) {
+                const prevX = ((i - 1) - latticeSize / 2 + 0.5) * latticeSpacing;
+                const prevPoint = new THREE.Vector3(prevX, y, z);
+                const points = [prevPoint, new THREE.Vector3(x, y, z)];
+                const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+                const lineMaterial = new THREE.LineBasicMaterial({
+                  color: 0x0088cc,
+                  transparent: true,
+                  opacity: 0.5
+                });
+                const line = new THREE.Line(lineGeometry, lineMaterial);
+                latticeGroup.add(line);
+              }
+              if (j > 0) {
+                const prevZ = ((j - 1) - latticeSize / 2 + 0.5) * latticeSpacing;
+                const prevPoint = new THREE.Vector3(x, y, prevZ);
+                const points = [prevPoint, new THREE.Vector3(x, y, z)];
+                const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+                const lineMaterial = new THREE.LineBasicMaterial({
+                  color: 0x0088cc,
+                  transparent: true,
+                  opacity: 0.5
+                });
+                const line = new THREE.Line(lineGeometry, lineMaterial);
+                latticeGroup.add(line);
+              }
+            }
+          }
+          for (let i = 0; i < 5; i++) {
+            const x = (Math.random() - 0.5) * 3;
+            const z = (Math.random() - 0.5) * 3;
+            const points = [new THREE.Vector3(x, -0.9, z), new THREE.Vector3(x, 0, z)];
+            const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+            const lineMaterial = new THREE.LineBasicMaterial({
+              color: 0xff5500,
+              transparent: true,
+              opacity: 0.8,
+              linewidth: 2
+            });
+            const line = new THREE.Line(lineGeometry, lineMaterial);
+            latticeGroup.add(line);
+            const tipGeometry = new THREE.SphereGeometry(0.1, 16, 16);
+            const tipMaterial = new THREE.MeshPhongMaterial({
+              color: 0xff5500,
+              emissive: 0xff3300,
+              emissiveIntensity: 0.5
+            });
+            const tip = new THREE.Mesh(tipGeometry, tipMaterial);
+            tip.position.set(x, 0, z);
+            latticeGroup.add(tip);
+          }
+        };
+
+        const createInstanceCertificateEncoding = (scene) => {
+          const constraintGroup = objectsRef.current[2];
+          const solutionGroup = objectsRef.current[3];
+          const numClauses = verificationSteps * 2;
+          const numVariables = searchSpace * 2;
+          for (let i = 0; i < numClauses; i++) {
+            const angle = (i / numClauses) * Math.PI * 2;
+            const radius = 2;
+            const x = radius * Math.cos(angle);
+            const z = radius * Math.sin(angle);
+            const y = -0.5 + Math.random() * 0.5;
+            const geometry = new THREE.TetrahedronGeometry(0.2);
+            const material = new THREE.MeshPhongMaterial({
+              color: 0xff0000,
+              transparent: true,
+              opacity: 0.8
+            });
+            const constraint = new THREE.Mesh(geometry, material);
+            constraint.position.set(x, y, z);
+            constraint.rotation.set(
+              Math.random() * Math.PI,
+              Math.random() * Math.PI,
+              Math.random() * Math.PI
+            );
+            constraint.userData = {
+              clauseIndex: i,
+              satisfied: false
+            };
+            constraintGroup.add(constraint);
+          }
+          const variableNodes = [];
+          for (let i = 0; i < numVariables; i++) {
+            for (let value = 0; value < 2; value++) {
+              const angle = (i / numVariables) * Math.PI * 2;
+              const innerRadius = 1.2;
+              const x = innerRadius * Math.cos(angle);
+              const z = innerRadius * Math.sin(angle);
+              const y = -0.7 + value * 0.3;
+              const geometry = new THREE.SphereGeometry(0.1);
+              const material = new THREE.MeshPhongMaterial({
+                color: value ? 0x00ff00 : 0xffaa00,
+                transparent: true,
+                opacity: 0.7
+              });
+              const variable = new THREE.Mesh(geometry, material);
+              variable.position.set(x, y, z);
+              variable.userData = {
+                variableIndex: i,
+                value: value === 1
+              };
+              solutionGroup.add(variable);
+              variableNodes.push(variable);
+            }
+          }
+          for (let i = 0; i < constraintGroup.children.length; i++) {
+            const clause = constraintGroup.children[i];
+            for (let j = 0; j < 3; j++) {
+              const randomVarIndex = Math.floor(Math.random() * variableNodes.length);
+              const variable = variableNodes[randomVarIndex];
+              const points = [clause.position.clone(), variable.position.clone()];
+              const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+              const lineMaterial = new THREE.LineBasicMaterial({
+                color: 0xaaaaaa,
+                transparent: true,
+                opacity: 0.3
+              });
+              const line = new THREE.Line(lineGeometry, lineMaterial);
+              constraintGroup.add(line);
+            }
+          }
+          const referenceGeometry = new THREE.SphereGeometry(0.25, 16, 16);
+          const referenceMaterial = new THREE.MeshPhongMaterial({
+            color: 0xffffff,
+            emissive: 0xffffff,
+            emissiveIntensity: 0.5,
+            transparent: true,
+            opacity: 0.7
+          });
+          const reference = new THREE.Mesh(referenceGeometry, referenceMaterial);
+          reference.position.set(0, 0.5, 0);
+          constraintGroup.add(reference);
+          for (let i = 0; i < numClauses; i++) {
+            const clause = constraintGroup.children[i];
+            if (clause.type !== "Mesh" || !clause.geometry.type.includes("Tetrahedron"))
+              continue;
+            const points = [reference.position.clone(), clause.position.clone()];
+            const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+            const lineMaterial = new THREE.LineBasicMaterial({
+              color: 0xffffff,
+              transparent: true,
+              opacity: 0.2
+            });
+            const line = new THREE.Line(lineGeometry, lineMaterial);
+            constraintGroup.add(line);
+          }
+        };
+
+        const createVerificationStructure = (scene) => {
+          const constraintGroup = objectsRef.current[2];
+          const verificationGroup = objectsRef.current[4];
+          const clauses = [];
+          for (let i = 0; i < constraintGroup.children.length; i++) {
+            const obj = constraintGroup.children[i];
+            if (obj.type === "Mesh" && obj.geometry.type.includes("Tetrahedron")) {
+              clauses.push(obj);
+            }
+          }
+          for (let i = 0; i < clauses.length; i++) {
+            const clause = clauses[i];
+            const startPoint = new THREE.Vector3(0, 1, 0);
+            const direction = clause.position.clone().sub(startPoint).normalize();
+            const distance = clause.position.distanceTo(startPoint);
+            const endPoint = startPoint.clone().add(direction.clone().multiplyScalar(distance * 0.9));
+            const points = [startPoint, endPoint];
+            const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+            const lineMaterial = new THREE.LineBasicMaterial({
+              color: 0x00aaff,
+              transparent: true,
+              opacity: 0.6,
+              linewidth: 2
+            });
+            const line = new THREE.Line(lineGeometry, lineMaterial);
+            verificationGroup.add(line);
+            if (Math.random() < 0.6) {
+              clause.userData.satisfied = true;
+              clause.material.color.set(0x00ff00);
+            }
+          }
+          const verifierGeometry = new THREE.ConeGeometry(0.3, 0.6, 32);
+          const verifierMaterial = new THREE.MeshPhongMaterial({
+            color: 0x00aaff,
+            emissive: 0x0044ff,
+            emissiveIntensity: 0.5
+          });
+          const verifier = new THREE.Mesh(verifierGeometry, verifierMaterial);
+          verifier.position.set(0, 1, 0);
+          verifier.rotation.x = Math.PI;
+          verificationGroup.add(verifier);
+        };
+
+        const createSearchStructure = (scene) => {
+          const solutionGroup = objectsRef.current[3];
+          const solvingPathGroup = objectsRef.current[5];
+          const dimension = searchSpace;
+          const hypercubeSize = Math.pow(2, dimension);
+          const points = [];
+          for (let i = 0; i < hypercubeSize; i++) {
+            const binary = i.toString(2).padStart(dimension, "0");
+            const x = (parseInt(binary[0] || "0") * 2 - 1) * 0.7;
+            const y = 0.5 + (parseInt(binary[1] || "0") * 2 - 1) * 0.7;
+            const z = (parseInt(binary[2] || "0") * 2 - 1) * 0.7;
+            let offsetX = 0,
+              offsetY = 0,
+              offsetZ = 0;
+            for (let d = 3; d < dimension; d++) {
+              const bit = parseInt(binary[d] || "0");
+              offsetX += bit * 0.1 * (d % 3);
+              offsetY += bit * 0.1 * ((d + 1) % 3);
+              offsetZ += bit * 0.1 * ((d + 2) % 3);
+            }
+            points.push(new THREE.Vector3(x + offsetX, y + offsetY, z + offsetZ));
+          }
+          for (let i = 0; i < points.length; i++) {
+            const geometry = new THREE.SphereGeometry(0.05, 16, 16);
+            const material = new THREE.MeshPhongMaterial({
+              color: 0xffffff,
+              transparent: true,
+              opacity: 0.7
+            });
+            const vertex = new THREE.Mesh(geometry, material);
+            vertex.position.copy(points[i]);
+            solutionGroup.add(vertex);
+          }
+          for (let i = 0; i < points.length; i++) {
+            for (let j = i + 1; j < points.length; j++) {
+              const bitDiff = (i ^ j).toString(2).split("1").length - 1;
+              if (bitDiff === 1) {
+                const linePoints = [points[i].clone(), points[j].clone()];
+                const lineGeometry = new THREE.BufferGeometry().setFromPoints(linePoints);
+                const lineMaterial = new THREE.LineBasicMaterial({
+                  color: 0xaaaaaa,
+                  transparent: true,
+                  opacity: 0.3
+                });
+                const line = new THREE.Line(lineGeometry, lineMaterial);
+                solutionGroup.add(line);
+              }
+            }
+          }
+          const targetGeometry = new THREE.SphereGeometry(0.08, 16, 16);
+          const targetMaterial = new THREE.MeshPhongMaterial({
+            color: 0x00ff00,
+            emissive: 0x00aa00,
+            emissiveIntensity: 0.5
+          });
+          const target = new THREE.Mesh(targetGeometry, targetMaterial);
+          target.position.copy(points[Math.floor(Math.random() * points.length)]);
+          solutionGroup.add(target);
+          const numPaths = Math.min(10, hypercubeSize / 2);
+          for (let i = 0; i < numPaths; i++) {
+            const startPoint = new THREE.Vector3(0, 0, 0);
+            const endVertex = points[Math.floor(Math.random() * points.length)];
+            const pathPoints = [startPoint];
+            const numSegments = 3 + Math.floor(Math.random() * 3);
+            for (let j = 1; j < numSegments; j++) {
+              const t = j / numSegments;
+              const randomOffset = new THREE.Vector3(
+                (Math.random() - 0.5) * 0.3,
+                (Math.random() - 0.5) * 0.3,
+                (Math.random() - 0.5) * 0.3
+              );
+              const interpolated = new THREE.Vector3().lerpVectors(startPoint, endVertex, t).add(randomOffset);
+              pathPoints.push(interpolated);
+            }
+            pathPoints.push(endVertex.clone());
+            const pathGeometry = new THREE.BufferGeometry().setFromPoints(pathPoints);
+            const pathMaterial = new THREE.LineBasicMaterial({
+              color: 0xaaaaaa,
+              transparent: true,
+              opacity: 0.5
+            });
+            const path = new THREE.Line(pathGeometry, pathMaterial);
+            solvingPathGroup.add(path);
+          }
+          const solutionPathPoints = [new THREE.Vector3(0, 0, 0)];
+          const numSegments = 4;
+          for (let j = 1; j < numSegments; j++) {
+            const t = j / numSegments;
+            const randomOffset = new THREE.Vector3(
+              (Math.random() - 0.5) * 0.2,
+              (Math.random() - 0.5) * 0.2,
+              (Math.random() - 0.5) * 0.2
+            );
+            const interpolated = new THREE.Vector3().lerpVectors(new THREE.Vector3(0, 0, 0), target.position, t).add(randomOffset);
+            solutionPathPoints.push(interpolated);
+          }
+          solutionPathPoints.push(target.position.clone());
+          const solutionPathGeometry = new THREE.BufferGeometry().setFromPoints(solutionPathPoints);
+          const solutionPathMaterial = new THREE.LineBasicMaterial({
+            color: 0x00ff00,
+            transparent: true,
+            opacity: 0.8
+          });
+          const solutionPath = new THREE.Line(solutionPathGeometry, solutionPathMaterial);
+          solvingPathGroup.add(solutionPath);
+        };
+
+        const createCoherenceNormVisualization = (scene) => {
+          const constraintGroup = objectsRef.current[2];
+          const solutionGroup = objectsRef.current[3];
+          const solvingPathGroup = objectsRef.current[5];
+          const clauses = [];
+          for (let i = 0; i < constraintGroup.children.length; i++) {
+            const obj = constraintGroup.children[i];
+            if (obj.type === "Mesh" && obj.geometry.type.includes("Tetrahedron")) {
+              clauses.push(obj);
+              obj.userData.satisfied = Math.random() < 0.7;
+              if (obj.userData.satisfied) {
+                obj.material.color.set(0x00ff00);
+              } else {
+                obj.material.color.set(0xff0000);
+              }
+            }
+          }
+          const surfaceSize = 3;
+          const resolution = 20;
+          const stepVal = surfaceSize / resolution;
+          const gridPoints = [];
+          for (let i = 0; i <= resolution; i++) {
+            for (let j = 0; j <= resolution; j++) {
+              const x = -surfaceSize / 2 + i * stepVal;
+              const z = -surfaceSize / 2 + j * stepVal;
+              const distFromCenter = Math.sqrt(x * x + z * z);
+              const noise = 0.1 * Math.sin(x * 5) * Math.cos(z * 4);
+              const height = -0.8 + 0.5 * distFromCenter + noise;
+              gridPoints.push(new THREE.Vector3(x, height, z));
+            }
+          }
+          const positions = [];
+          const indices = [];
+          const colors = [];
+          for (let i = 0; i <= resolution; i++) {
+            for (let j = 0; j <= resolution; j++) {
+              const index = i * (resolution + 1) + j;
+              const point = gridPoints[index];
+              positions.push(point.x, point.y, point.z);
+              const height = point.y;
+              const normalizedHeight = (height + 0.8) / 1.3;
+              const r = normalizedHeight;
+              const g = 1 - normalizedHeight;
+              const b = 0.2;
+              colors.push(r, g, b);
+            }
+          }
+          for (let i = 0; i < resolution; i++) {
+            for (let j = 0; j < resolution; j++) {
+              const a = i * (resolution + 1) + j;
+              const bIdx = i * (resolution + 1) + (j + 1);
+              const c = (i + 1) * (resolution + 1) + (j + 1);
+              const d = (i + 1) * (resolution + 1) + j;
+              indices.push(a, bIdx, d);
+              indices.push(bIdx, c, d);
+            }
+          }
+          const surfaceGeometry = new THREE.BufferGeometry();
+          surfaceGeometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+          surfaceGeometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+          surfaceGeometry.setIndex(indices);
+          surfaceGeometry.computeVertexNormals();
+          const surfaceMaterial = new THREE.MeshPhongMaterial({
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.8,
+            side: THREE.DoubleSide,
+            flatShading: true
+          });
+          const surface = new THREE.Mesh(surfaceGeometry, surfaceMaterial);
+          solutionGroup.add(surface);
+          const stateGeometry = new THREE.SphereGeometry(0.1, 16, 16);
+          const stateMaterial = new THREE.MeshPhongMaterial({
+            color: 0xffffff,
+            emissive: 0xaaaaaa,
+            emissiveIntensity: 0.5
+          });
+          const state = new THREE.Mesh(stateGeometry, stateMaterial);
+          state.position.set(0.5, -0.6, 0.3);
+          solutionGroup.add(state);
+          const minimumGeometry = new THREE.SphereGeometry(0.1, 16, 16);
+          const minimumMaterial = new THREE.MeshPhongMaterial({
+            color: 0x00ff00,
+            emissive: 0x00aa00,
+            emissiveIntensity: 0.5
+          });
+          const minimum = new THREE.Mesh(minimumGeometry, minimumMaterial);
+          minimum.position.set(0, -0.8, 0);
+          solutionGroup.add(minimum);
+          const pathPoints = [];
+          const numPathPoints = 20;
+          for (let i = 0; i < numPathPoints; i++) {
+            const t = i / (numPathPoints - 1);
+            const pathPoint = new THREE.Vector3().lerpVectors(state.position, minimum.position, t);
+            const noise = 0.1 * Math.sin(t * Math.PI * 2);
+            pathPoint.x += noise * (1 - t);
+            pathPoint.z += noise * (1 - t);
+            const distFromCenter = Math.sqrt(pathPoint.x * pathPoint.x + pathPoint.z * pathPoint.z);
+            pathPoint.y = -0.8 + 0.5 * distFromCenter * (1 - t * t);
+            pathPoints.push(pathPoint);
+          }
+          const pathGeometry = new THREE.BufferGeometry().setFromPoints(pathPoints);
+          const pathMaterial = new THREE.LineBasicMaterial({
+            color: 0xffffff,
+            transparent: true,
+            opacity: 0.8
+          });
+          const path = new THREE.Line(pathGeometry, pathMaterial);
+          solvingPathGroup.add(path);
+        };
+
+        const createPvsNPConclusion = (scene) => {
+          const constraintGroup = objectsRef.current[2];
+          const solutionGroup = objectsRef.current[3];
+          const solvingPathGroup = objectsRef.current[5];
+          const graphSize = 3;
+          const graphHeight = 2;
+          const resolution = 20;
+          const stepVal = graphSize / resolution;
+          const polyPoints = [];
+          const expPoints = [];
+          for (let i = 0; i <= resolution; i++) {
+            const x = i * stepVal;
+            const t = i / resolution;
+            const polyY = graphHeight * Math.pow(t, 3);
+            const expY = graphHeight * (Math.pow(2, t) - 1) / (Math.pow(2, 1) - 1);
+            polyPoints.push(new THREE.Vector3(x - graphSize / 2, polyY - 0.5, -1.5));
+            expPoints.push(new THREE.Vector3(x - graphSize / 2, expY - 0.5, -1.5));
+          }
+          const polyGeometry = new THREE.BufferGeometry().setFromPoints(polyPoints);
+          const polyMaterial = new THREE.LineBasicMaterial({
+            color: 0x00aaff,
+            linewidth: 3
+          });
+          const polyCurve = new THREE.Line(polyGeometry, polyMaterial);
+          solutionGroup.add(polyCurve);
+          const expGeometry = new THREE.BufferGeometry().setFromPoints(expPoints);
+          const expMaterial = new THREE.LineBasicMaterial({
+            color: 0xff0000,
+            linewidth: 3
+          });
+          const expCurve = new THREE.Line(expGeometry, expMaterial);
+          solutionGroup.add(expCurve);
+          const createTextSprite = (text, position, color) => {
+            const canvas = document.createElement("canvas");
+            const context = canvas.getContext("2d");
+            canvas.width = 256;
+            canvas.height = 128;
+            context.font = "24px Arial";
+            context.fillStyle = "white";
+            context.fillText(text, 10, 50);
+            const texture = new THREE.CanvasTexture(canvas);
+            const spriteMaterial = new THREE.SpriteMaterial({
+              map: texture,
+              transparent: true
+            });
+            const sprite = new THREE.Sprite(spriteMaterial);
+            sprite.position.copy(position);
+            sprite.scale.set(1, 0.5, 1);
+            return sprite;
+          };
+          const polyLabel = createTextSprite("Polynomial (P)", new THREE.Vector3(-0.5, 0.5, -1.5), "#00aaff");
+          const expLabel = createTextSprite("Exponential (NP)", new THREE.Vector3(-0.5, 1.5, -1.5), "#ff0000");
+          solutionGroup.add(polyLabel);
+          solutionGroup.add(expLabel);
+          const createPvsNPSprite = () => {
+            const canvas = document.createElement("canvas");
+            const context = canvas.getContext("2d");
+            canvas.width = 512;
+            canvas.height = 256;
+            context.fillStyle = "rgba(0, 0, 0, 0.7)";
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.font = "bold 72px Arial";
+            context.fillStyle = "white";
+            context.textAlign = "center";
+            context.fillText("P ≠ NP", canvas.width / 2, canvas.height / 2 + 20);
+            const texture = new THREE.CanvasTexture(canvas);
+            const spriteMaterial = new THREE.SpriteMaterial({
+              map: texture,
+              transparent: true
+            });
+            const sprite = new THREE.Sprite(spriteMaterial);
+            sprite.position.set(0, 0.5, 0);
+            sprite.scale.set(2, 1, 1);
+            return sprite;
+          };
+          const pvsNpSymbol = createPvsNPSprite();
+          solutionGroup.add(pvsNpSymbol);
+          const localSize = 0.1 * localOperations;
+          const localGeometry = new THREE.SphereGeometry(localSize, 32, 32);
+          const localMaterial = new THREE.MeshPhongMaterial({
+            color: 0x00aaff,
+            transparent: true,
+            opacity: 0.3
+          });
+          const localSphere = new THREE.Mesh(localGeometry, localMaterial);
+          localSphere.position.set(-1, 0, 1);
+          solutionGroup.add(localSphere);
+          const globalGeometry = new THREE.SphereGeometry(1.2, 32, 32);
+          const globalMaterial = new THREE.MeshPhongMaterial({
+            color: 0xff0000,
+            transparent: true,
+            opacity: 0.15,
+            wireframe: true
+          });
+          const globalSphere = new THREE.Mesh(globalGeometry, globalMaterial);
+          globalSphere.position.set(1, 0, 1);
+          solutionGroup.add(globalSphere);
+          for (let i = 0; i < 5; i++) {
+            const angle = (i * Math.PI * 2) / 5;
+            const startX = -1 + localSize * 1.2 * Math.cos(angle);
+            const startZ = 1 + localSize * 1.2 * Math.sin(angle);
+            const endX = 1 + Math.cos(angle);
+            const endZ = 1 + Math.sin(angle);
+            const points = [new THREE.Vector3(startX, 0, startZ), new THREE.Vector3(endX, 0, endZ)];
+            const arrowGeometry = new THREE.BufferGeometry().setFromPoints(points);
+            const arrowMaterial = new THREE.LineBasicMaterial({
+              color: 0xff5500,
+              transparent: true,
+              opacity: 0.7
+            });
+            const arrow = new THREE.Line(arrowGeometry, arrowMaterial);
+            solvingPathGroup.add(arrow);
+            const headGeometry = new THREE.ConeGeometry(0.05, 0.15, 8);
+            const headMaterial = new THREE.MeshPhongMaterial({
+              color: 0xff5500
+            });
+            const arrowhead = new THREE.Mesh(headGeometry, headMaterial);
+            arrowhead.position.set(endX, 0, endZ);
+            const direction = new THREE.Vector3().subVectors(new THREE.Vector3(endX, 0, endZ), new THREE.Vector3(startX, 0, startZ)).normalize();
+            const axis = new THREE.Vector3(0, 1, 0);
+            arrowhead.quaternion.setFromUnitVectors(axis, direction);
+            arrowhead.rotateX(Math.PI / 2);
+            solvingPathGroup.add(arrowhead);
+          }
+        };
+
+        // Fluid Dynamics helper functions
+        const addCoordinateSystem = (scene) => {
+          const velocityField = objectsRef.current[3];
+          const curvesMaterial = new THREE.LineBasicMaterial({
+            color: 0xffff00,
+            transparent: true,
+            opacity: 0.6
+          });
+          for (let i = 0; i < 8; i++) {
+            const angle = (i / 8) * Math.PI * 2;
+            const points = [];
+            for (let j = 0; j <= 32; j++) {
+              const phi = (j / 32) * Math.PI;
+              const radius = 2.02;
+              const x = radius * Math.sin(phi) * Math.cos(angle);
+              const y = radius * Math.sin(phi) * Math.sin(angle);
+              const z = radius * Math.cos(phi);
+              points.push(new THREE.Vector3(x, y, z));
+            }
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const curve = new THREE.Line(geometry, curvesMaterial);
+            velocityField.add(curve);
+          }
+          for (let i = 1; i < 8; i++) {
+            const phi = (i / 8) * Math.PI;
+            const points = [];
+            for (let j = 0; j <= 32; j++) {
+              const theta = (j / 32) * Math.PI * 2;
+              const radius = 2.02;
+              const x = radius * Math.sin(phi) * Math.cos(theta);
+              const y = radius * Math.sin(phi) * Math.sin(theta);
+              const z = radius * Math.cos(phi);
+              points.push(new THREE.Vector3(x, y, z));
+            }
+            const geometry = new THREE.BufferGeometry().setFromPoints(points);
+            const curve = new THREE.Line(geometry, curvesMaterial);
+            velocityField.add(curve);
+          }
+        };
+
+        const addFiberAlgebras = (scene) => {
+          const velocityField = objectsRef.current[3];
+          for (let i = 0; i < 16; i++) {
+            const theta = Math.random() * Math.PI * 2;
+            const phi = Math.acos(2 * Math.random() - 1);
+            const radius = 2;
+            const x = radius * Math.sin(phi) * Math.cos(theta);
+            const y = radius * Math.sin(phi) * Math.sin(theta);
+            const z = radius * Math.cos(phi);
+            const point = new THREE.Vector3(x, y, z);
+            const fiberGeometry = new THREE.OctahedronGeometry(0.18);
+            const fiberMaterial = new THREE.MeshPhongMaterial({
+              color: 0xff9900,
+              wireframe: true,
+              transparent: true,
+              opacity: 0.9,
+              emissive: 0xff4400,
+              emissiveIntensity: 0.3
+            });
+            const fiber = new THREE.Mesh(fiberGeometry, fiberMaterial);
+            fiber.position.copy(point);
+            const basisGeometry = new THREE.BoxGeometry(0.05, 0.05, 0.05);
+            const basisMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
+            const basis = new THREE.Mesh(basisGeometry, basisMaterial);
+            fiber.add(basis);
+            fiber.userData = {
+              originalPosition: point.clone(),
+              phase: Math.random() * Math.PI * 2
+            };
+            velocityField.add(fiber);
+          }
+        };
+
+        const addCoherenceLinks = (scene) => {
+          const velocityField = objectsRef.current[3];
+          const fibers = velocityField.children.filter(
+            (child) => child.type === "Mesh" && child.geometry.type.includes("Octahedron")
+          );
+          for (let i = 0; i < fibers.length; i++) {
+            for (let j = i + 1; j < fibers.length; j++) {
+              const distance = fibers[i].position.distanceTo(fibers[j].position);
+              if (distance < 1.5) {
+                const points = [fibers[i].position.clone(), fibers[j].position.clone()];
+                const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                const material = new THREE.LineBasicMaterial({
+                  color: 0x00ffff,
+                  transparent: true,
+                  opacity: 0.4
+                });
+                const line = new THREE.Line(geometry, material);
+                velocityField.add(line);
+              }
+            }
+          }
+        };
+
+        const addVelocityVectors = (scene) => {
+          const velocityField = objectsRef.current[3];
+          const fibers = velocityField.children.filter(
+            (child) => child.type === "Mesh" && child.geometry.type.includes("Octahedron")
+          );
+          fibers.forEach((fiber) => {
+            const origin = fiber.position.clone();
+            const normal = origin.clone().normalize();
+            const tangent1 = new THREE.Vector3(1, 0, 0);
+            tangent1.crossVectors(normal, tangent1).normalize();
+            if (tangent1.length() < 0.1) {
+              tangent1.crossVectors(normal, new THREE.Vector3(0, 1, 0)).normalize();
+            }
+            const tangent2 = new THREE.Vector3();
+            tangent2.crossVectors(normal, tangent1).normalize();
+            const angle = Math.random() * Math.PI * 2;
+            const direction = new THREE.Vector3()
+              .addScaledVector(tangent1, Math.cos(angle))
+              .addScaledVector(tangent2, Math.sin(angle))
+              .normalize()
+              .multiplyScalar(0.4);
+            const originalDirection = direction.clone().normalize();
+            const arrowHelper = new THREE.ArrowHelper(
+              direction.clone().normalize(),
+              origin,
+              direction.length(),
+              0x00ff00
+            );
+            arrowHelper.userData = {
+              originalDirection: originalDirection,
+              originalLength: direction.length()
+            };
+            velocityField.add(arrowHelper);
+          });
+        };
+
+        const addDivergenceFreeField = (scene) => {
+          const velocityField = objectsRef.current[3];
+          for (let i = 0; i < 32; i++) {
+            const theta = (i / 16) * Math.PI * 2;
+            const phi = Math.acos(2 * (i % 8) / 8 - 1);
+            const radius = 2;
+            const origin = new THREE.Vector3(
+              radius * Math.sin(phi) * Math.cos(theta),
+              radius * Math.sin(phi) * Math.sin(theta),
+              radius * Math.cos(phi)
+            );
+            const normal = origin.clone().normalize();
+            const tangent1 = new THREE.Vector3(1, 0, 0);
+            tangent1.crossVectors(normal, tangent1).normalize();
+            if (tangent1.length() < 0.1) {
+              tangent1.crossVectors(normal, new THREE.Vector3(0, 1, 0)).normalize();
+            }
+            const arrowHelper = new THREE.ArrowHelper(
+              tangent1,
+              origin,
+              0.4,
+              0x00ff00
+            );
+            velocityField.add(arrowHelper);
+          }
+        };
+
+        // Render component UI and canvas
+        return (
+          <div style={{ height: "100%", width: "100%", position: "relative" }}>
+            <canvas ref={canvasRef} style={{ width: "100%", height: "100%" }} />
+            <div className="controls">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                  }}
+                  style={{
+                    backgroundColor: activeTab === tab.id ? "#555" : "#333",
+                    color: "#eee",
+                    border: "none",
+                    cursor: "pointer"
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+              <button onClick={() => setStep((prev) => (prev + 1) % steps.length)}>
+                Next Step
+              </button>
+            </div>
+          </div>
+        );
+      };
+
+      // Render the React component
+      ReactDOM.createRoot(document.getElementById("root")).render(
+        <PrimeFrameworkVisualization />
+      );
+    </script>
+  </body>
+</html>
